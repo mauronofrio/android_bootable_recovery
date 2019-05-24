@@ -159,6 +159,7 @@ enum TW_FSTAB_FLAGS {
 	TWFLAG_RESIZE,
 	TWFLAG_KEYDIRECTORY,
 	TWFLAG_LOGICAL,
+	TWFLAG_WRAPPEDKEY,
 };
 
 /* Flags without a trailing '=' are considered dual format flags and can be
@@ -204,6 +205,7 @@ const struct flag_list tw_flags[] = {
 	{ "resize",                 TWFLAG_RESIZE },
 	{ "keydirectory=",          TWFLAG_KEYDIRECTORY },
 	{ "logical",				TWFLAG_LOGICAL },
+	{ "wrappedkey",             TWFLAG_WRAPPEDKEY },
 	{ 0,                        0 },
 };
 
@@ -896,6 +898,13 @@ void TWPartition::Apply_TW_Flag(const unsigned flag, const char* str, const bool
 				property_set("fbe.contents", FBE_contents.c_str());
 				property_set("fbe.filenames", FBE_filenames.c_str());
 				LOGINFO("FBE contents '%s', filenames '%s'\n", FBE_contents.c_str(), FBE_filenames.c_str());
+			}
+			break;
+		case TWFLAG_WRAPPEDKEY:
+			// Set fbe.data.wrappedkey to true
+			{
+				property_set("fbe.data.wrappedkey", "true");
+				LOGINFO("FBE wrapped key enabled\n");
 			}
 			break;
 		case TWFLAG_FLASHIMG:
