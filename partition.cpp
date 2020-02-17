@@ -792,7 +792,8 @@ void TWPartition::Set_FBE_Status() {
 }
 
 bool TWPartition::Decrypt_FBE_DE() {
-	if (TWFunc::Path_Exists("/data/unencrypted/key/version")) {
+if (TWFunc::Path_Exists("/data/unencrypted/key/version")) {
+		DataManager::SetValue(TW_IS_FBE, 1);
 		LOGINFO("File Based Encryption is present\n");
 #ifdef TW_INCLUDE_FBE
 		ExcludeAll(Mount_Point + "/convert_fbe");
@@ -840,6 +841,7 @@ bool TWPartition::Decrypt_FBE_DE() {
 		LOGERR("FBE found but FBE support not present in TWRP\n");
 #endif
 	}
+	DataManager::SetValue(TW_IS_FBE, 0);
 	return false;
 }
 
