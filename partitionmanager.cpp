@@ -1,5 +1,5 @@
 /*
-	Copyright 2014 to 2017 TeamWin
+	Copyright 2014 to 2020 TeamWin
 	This file is part of TWRP/TeamWin Recovery Project.
 
 	TWRP is free software: you can redistribute it and/or modify
@@ -35,10 +35,22 @@
 #include <linux/fs.h>
 #include <sys/mount.h>
 
+
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <linux/types.h>
 #include <linux/netlink.h>
+#include <android-base/chrono_utils.h>
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/strings.h>
+#include <fstab/fstab.h>
+#include <fs_avb/fs_avb.h>
+#include <fs_mgr.h>
+#include <fs_mgr_dm_linear.h>
+#include <fs_mgr_overlayfs.h>
+#include <libgsi/libgsi.h>
+#include <liblp/liblp.h>
 
 #include "variables.h"
 #include "twcommon.h"
@@ -91,8 +103,11 @@ extern "C" {
 #include <hardware/boot_control.h>
 #endif
 
-extern bool datamedia;
+using android::fs_mgr::Fstab;
+using android::fs_mgr::FstabEntry;
 
+extern bool datamedia;
+ 
 TWPartitionManager::TWPartitionManager(void) {
 	mtp_was_enabled = false;
 	mtp_write_fd = -1;
@@ -187,7 +202,9 @@ int TWPartitionManager::Process_Fstab(string Fstab_Filename, bool Display_Error,
 		LOGINFO("Reading %s\n", Fstab_Filename.c_str());
 
 	while (fgets(fstab_line, sizeof(fstab_line), fstabFile) != NULL) {
-		if (fstab_line[0] != '/')
+		bool isSuper = Is_Super_Partition(fstab_line);
+
+		if (!isSuper && fstab_line[0] != '/')
 			continue;
 
 		if (strstr(fstab_line, "swap"))
@@ -2893,7 +2910,9 @@ void TWPartitionManager::Handle_Uevent(const Uevent_Block_Data& uevent_data) {
 			}
 		}
 	}
-	LOGINFO("Found no matching fstab entry for uevent device '%s' - %s\n", uevent_data.sysfs_path.c_str(), uevent_data.action.c_str());
+
+	if (!PartitionManager.Get_Super_Status())
+		LOGINFO("Found no matching fstab entry for uevent device '%s' - %s\n", uevent_data.sysfs_path.c_str(), uevent_data.action.c_str());
 }
 
 void TWPartitionManager::setup_uevent() {
@@ -3201,4 +3220,69 @@ bool TWPartitionManager::Repack_Images(const std::string& Target_Image, const st
 	}
 	TWFunc::removeDir(REPACK_NEW_DIR, false);
 	return true;
+}
+
+bool TWPartitionManager::Prepare_Super_Partition(TWPartition* twrpPart) {
+    Fstab fstab;
+	std::string bare_partition_name;
+
+	if (twrpPart->Get_Mount_Point() == "/system_root")
+		bare_partition_name = "system";
+	else
+		bare_partition_name = TWFunc::Remove_Beginning_Slash(twrpPart->Get_Mount_Point());
+
+	FstabEntry fstabEntry = {
+        .blk_device = bare_partition_name + PartitionManager.Get_Active_Slot_Suffix() ,
+        .mount_point = twrpPart->Get_Mount_Point(),
+        .fs_type = twrpPart->Current_File_System,
+        .fs_mgr_flags.logical = twrpPart->Is_Super,
+    };
+
+    fstab.emplace_back(fstabEntry);
+    if (!fs_mgr_update_logical_partition(&fstabEntry)) {
+        LOGERR("unable to update logical partition: %s\n", twrpPart->Get_Mount_Point().c_str());
+        return false;
+    }
+
+	twrpPart->Set_Block_Device(fstabEntry.blk_device);
+	twrpPart->Update_Size(true);
+
+	TWPartition* emmcSuperPartition = new TWPartition();
+	emmcSuperPartition->Mount_Point = bare_partition_name;
+	emmcSuperPartition->Actual_Block_Device = twrpPart->Actual_Block_Device;
+	emmcSuperPartition->Alternate_Block_Device = twrpPart->Actual_Block_Device;
+	emmcSuperPartition->Backup_Display_Name = twrpPart->Backup_Display_Name + " Image";
+	emmcSuperPartition->Change_Mount_Read_Only(true);
+	emmcSuperPartition->Current_File_System = "emmc";
+	emmcSuperPartition->Can_Be_Backed_Up = true;
+	emmcSuperPartition->Is_Present = true;
+	emmcSuperPartition->Is_SubPartition = false;
+	Add_Partition(emmcSuperPartition);
+	PartitionManager.Output_Partition(emmcSuperPartition);
+	Update_System_Details();
+
+    return true;
+}
+
+bool TWPartitionManager::Is_Super_Partition(const char* fstab_line) {
+	bool isSuper = false;
+	if (strncmp(fstab_line, "system", strlen("system")) == 0 || strncmp(fstab_line, "vendor", strlen("vendor")) == 0
+	|| strncmp(fstab_line, "data", strlen("data")) == 0) {
+		isSuper = true;
+	}
+	return isSuper;
+}
+
+std::string TWPartitionManager::Get_Super_Partition() {
+	int slot_number = Get_Active_Slot_Display() == "A" ? 0 : 1;
+	std::string super_device = 	fs_mgr_get_super_partition_name(slot_number);
+	return "/dev/block/by-name/" + super_device;
+}
+
+void TWPartitionManager::Setup_Super_Devices() {
+	android::fs_mgr::CreateLogicalPartitions(Get_Super_Partition());
+}
+
+bool TWPartitionManager::Get_Super_Status() {
+	return access(Get_Super_Partition().c_str(), F_OK) == 0;
 }
