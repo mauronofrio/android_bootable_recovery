@@ -14,7 +14,11 @@ LOCAL_C_INCLUDES += external/libselinux/include
 LOCAL_SHARED_LIBRARIES += libselinux
 
 ifeq ($(TW_INCLUDE_CRYPTO_FBE), true)
-    LOCAL_SHARED_LIBRARIES += libe4crypt
+    ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 20; echo $$?),0)
+        LOCAL_SHARED_LIBRARIES += libtwrpfscrypt
+    else
+        LOCAL_SHARED_LIBRARIES += libe4crypt
+    endif
     LOCAL_CFLAGS += -DHAVE_EXT4_CRYPT
     LOCAL_C_INCLUDES += $(LOCAL_PATH)/../crypto/ext4crypt
 endif

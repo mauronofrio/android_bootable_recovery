@@ -310,6 +310,7 @@ public:
 public:
 	int Process_Fstab(string Fstab_Filename, bool Display_Error, bool Sar_Detect);             // Parses the fstab and populates the partitions
 	int Write_Fstab();                                                        // Creates /etc/fstab file that's used by the command line for mount commands
+	void Decrypt_Data();													  // Decrypt Data if enabled
 	void Output_Partition_Logging();                                          // Outputs partition information to the log
 	void Output_Partition(TWPartition* Part);                                 // Outputs partition details to the log
 	int Mount_By_Path(string Path, bool Display_Error);                       // Mounts partition based on path (e.g. /system)
