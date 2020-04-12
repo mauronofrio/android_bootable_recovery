@@ -90,7 +90,11 @@ extern "C" {
 	#ifdef TW_INCLUDE_FBE
 		#include "crypto/ext4crypt/Decrypt.h"
 		#ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
-			#include "crypto/ext4crypt/MetadataCrypt.h"
+			#ifdef USE_FSCRYPT
+				#include "crypto/fscrypt/MetadataCrypt.h"
+			#else
+				#include "crypto/ext4crypt/MetadataCrypt.h"
+			#endif
 		#endif
 	#endif
 	#ifdef TW_CRYPTO_USE_SYSTEM_VOLD
@@ -307,13 +311,59 @@ int TWPartitionManager::Process_Fstab(string Fstab_Filename, bool Display_Error,
 	if (settings_partition) {
 		Setup_Settings_Storage_Partition(settings_partition);
 	}
-#ifdef TW_INCLUDE_CRYPTO
+
+	Update_System_Details();
+	UnMount_Main_Partitions();
+#ifdef AB_OTA_UPDATER
+	DataManager::SetValue("tw_active_slot", Get_Active_Slot_Display());
+#endif
+	setup_uevent();
+	return true;
+}
+
+int TWPartitionManager::Write_Fstab(void) {
+	FILE *fp;
+	std::vector<TWPartition*>::iterator iter;
+	string Line;
+
+	fp = fopen("/etc/fstab", "w");
+	if (fp == NULL) {
+		LOGINFO("Can not open /etc/fstab.\n");
+		return false;
+	}
+	for (iter = Partitions.begin(); iter != Partitions.end(); iter++) {
+		if ((*iter)->Can_Be_Mounted) {
+			Line = (*iter)->Actual_Block_Device + " " + (*iter)->Mount_Point + " " + (*iter)->Current_File_System + " rw 0 0\n";
+			fputs(Line.c_str(), fp);
+		}
+		// Handle subpartition tracking
+		if ((*iter)->Is_SubPartition) {
+			TWPartition* ParentPartition = Find_Partition_By_Path((*iter)->SubPartition_Of);
+			if (ParentPartition)
+				ParentPartition->Has_SubPartition = true;
+			else
+				LOGERR("Unable to locate parent partition '%s' of '%s'\n", (*iter)->SubPartition_Of.c_str(), (*iter)->Mount_Point.c_str());
+		}
+	}
+	fclose(fp);
+	return true;
+}
+
+void TWPartitionManager::Decrypt_Data() {
+	#ifdef TW_INCLUDE_CRYPTO
 	TWPartition* Decrypt_Data = Find_Partition_By_Path("/data");
 	if (Decrypt_Data && Decrypt_Data->Is_Encrypted && !Decrypt_Data->Is_Decrypted) {
 		if (!Decrypt_Data->Key_Directory.empty() && Mount_By_Path(Decrypt_Data->Key_Directory, false)) {
 #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
+#ifdef USE_FSCRYPT
+			if (fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false)) {
+				property_set("ro.crypto.fs_crypto_blkdev", Decrypt_Data->Decrypted_Block_Device.c_str());
+				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", 
+				Decrypt_Data->Actual_Block_Device.c_str());
+#else
 			if (e4crypt_mount_metadata_encrypted(Decrypt_Data->Mount_Point, false, Decrypt_Data->Key_Directory, Decrypt_Data->Actual_Block_Device, &Decrypt_Data->Decrypted_Block_Device)) {
 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", Decrypt_Data->Decrypted_Block_Device.c_str());
+#endif
 				property_set("ro.crypto.state", "encrypted");
 				Decrypt_Data->Is_Decrypted = true; // Needed to make the mount function work correctly
 				int retry_count = 10;
@@ -366,41 +416,6 @@ int TWPartitionManager::Process_Fstab(string Fstab_Filename, bool Display_Error,
 		Decrypt_Adopted();
 	}
 #endif
-	Update_System_Details();
-	UnMount_Main_Partitions();
-#ifdef AB_OTA_UPDATER
-	DataManager::SetValue("tw_active_slot", Get_Active_Slot_Display());
-#endif
-	setup_uevent();
-	return true;
-}
-
-int TWPartitionManager::Write_Fstab(void) {
-	FILE *fp;
-	std::vector<TWPartition*>::iterator iter;
-	string Line;
-
-	fp = fopen("/etc/fstab", "w");
-	if (fp == NULL) {
-		LOGINFO("Can not open /etc/fstab.\n");
-		return false;
-	}
-	for (iter = Partitions.begin(); iter != Partitions.end(); iter++) {
-		if ((*iter)->Can_Be_Mounted) {
-			Line = (*iter)->Actual_Block_Device + " " + (*iter)->Mount_Point + " " + (*iter)->Current_File_System + " rw 0 0\n";
-			fputs(Line.c_str(), fp);
-		}
-		// Handle subpartition tracking
-		if ((*iter)->Is_SubPartition) {
-			TWPartition* ParentPartition = Find_Partition_By_Path((*iter)->SubPartition_Of);
-			if (ParentPartition)
-				ParentPartition->Has_SubPartition = true;
-			else
-				LOGERR("Unable to locate parent partition '%s' of '%s'\n", (*iter)->SubPartition_Of.c_str(), (*iter)->Mount_Point.c_str());
-		}
-	}
-	fclose(fp);
-	return true;
 }
 
 void TWPartitionManager::Setup_Settings_Storage_Partition(TWPartition* Part) {
@@ -1657,6 +1672,9 @@ void TWPartitionManager::Update_System_Details(void) {
 
 void TWPartitionManager::Post_Decrypt(const string& Block_Device) {
 	TWPartition* dat = Find_Partition_By_Path("/data");
+#ifdef USE_FSCRYPT
+	dat->Set_Block_Device("/dev/block/mapper/userdata");
+#endif
 	if (dat != NULL) {
 		DataManager::SetValue(TW_IS_DECRYPTED, 1);
 		dat->Is_Decrypted = true;
@@ -1714,6 +1732,12 @@ int TWPartitionManager::Decrypt_Device(string Password) {
 			usleep(2000); // A small sleep is needed after mounting /data to ensure reliable decrypt... maybe because of DE?
 		int user_id = DataManager::GetIntValue("tw_decrypt_user_id");
 		LOGINFO("Decrypting FBE for user %i\n", user_id);
+#ifdef TW_USE_FSCRYPT
+		if (!Decrypt_DE()) { // run to initialize fscrypt before unlocking FBE by user password
+			LOGERR("Unable to initialize fscrypt.\n");
+			return -1l
+		}
+#endif
 		if (Decrypt_User(user_id, Password)) {
 			Post_Decrypt("");
 			return 0;
