@@ -24,6 +24,10 @@
 # include "ext4crypt_tar.h"
 #endif
 
+#ifdef USE_FSCRYPT
+#include "fscrypt_policy.h"
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -70,6 +74,9 @@ struct tar_header
 	char *selinux_context;
 #ifdef HAVE_EXT4_CRYPT
 	struct ext4_encryption_policy *eep;
+#endif
+#ifdef USE_FSCRYPT
+	struct fscrypt_encryption_policy *fep;
 #endif
 	int has_cap_data;
 	struct vfs_cap_data cap_data;
@@ -123,6 +130,7 @@ TAR;
 #define TAR_STORE_EXT4_POL	512	/* store ext4 crypto policy */
 #define TAR_STORE_POSIX_CAP	1024	/* store posix file capabilities */
 #define TAR_STORE_ANDROID_USER_XATTR	2048	/* store android user.* xattr */
+#define TAR_STORE_FSCRYPT_POL 4096 /* store fscrypt crypto policy */
 
 /* this is obsolete - it's here for backwards-compatibility only */
 #define TAR_IGNORE_MAGIC	0

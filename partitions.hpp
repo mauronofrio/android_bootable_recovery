@@ -310,6 +310,7 @@ public:
 public:
 	int Process_Fstab(string Fstab_Filename, bool Display_Error, bool Sar_Detect);             // Parses the fstab and populates the partitions
 	int Write_Fstab();                                                        // Creates /etc/fstab file that's used by the command line for mount commands
+	void Decrypt_Data();													  // Decrypt Data if enabled
 	void Output_Partition_Logging();                                          // Outputs partition information to the log
 	void Output_Partition(TWPartition* Part);                                 // Outputs partition details to the log
 	int Mount_By_Path(string Path, bool Display_Error);                       // Mounts partition based on path (e.g. /system)
@@ -387,6 +388,7 @@ public:
 	std::string Get_Super_Partition();										  // Get Super Partition block device path
 	void Setup_Super_Devices();												  // Setup logical dm devices on super partition
 	bool Get_Super_Status();												  // Return whether device has a super partition
+	void Setup_Super_Partition();											  // Setup the super partition for backup and restore
 private:
 	void Setup_Settings_Storage_Partition(TWPartition* Part);                 // Sets up settings storage
 	void Setup_Android_Secure_Location(TWPartition* Part);                    // Sets up .android_secure if needed

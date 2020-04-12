@@ -726,7 +726,7 @@ void TWPartition::Setup_Data_Partition(bool Display_Error) {
 }
 
 bool TWPartition::Decrypt_FBE_DE() {
-if (TWFunc::Path_Exists("/data/unencrypted/key/version")) {
+	if (TWFunc::Path_Exists("/data/unencrypted/key/version")) {
 		LOGINFO("File Based Encryption is present\n");
 #ifdef TW_INCLUDE_FBE
 		ExcludeAll(Mount_Point + "/convert_fbe");
@@ -749,6 +749,7 @@ if (TWFunc::Path_Exists("/data/unencrypted/key/version")) {
 		ExcludeAll(Mount_Point + "/drm/kek.dat");
 		ExcludeAll(Mount_Point + "/system_de/0/spblob"); // contains data needed to decrypt pixel 2
 		int retry_count = 3;
+
 		while (!Decrypt_DE() && --retry_count)
 			usleep(2000);
 		if (retry_count > 0) {
@@ -1572,11 +1573,13 @@ bool TWPartition::Mount(bool Display_Error) {
 		TWFunc::Exec_Cmd(Command);
 	}
 
+#ifndef TW_NO_BIND_SYSTEM
 	if (Mount_Point == "/system_root") {
 		unlink("/system");
 		mkdir("/system", 0755);
 		mount("/system_root/system", "/system", "auto", MS_BIND, NULL);
 	}
+#endif
 
 	return true;
 }
@@ -2329,86 +2332,63 @@ bool TWPartition::Wipe_RMRF() {
 }
 
 bool TWPartition::Wipe_F2FS() {
-	string command;
+	std::string command;
+	std::string f2fs_bin;
 
-	if (TWFunc::Path_Exists("/sbin/mkfs.f2fs")) {
-		bool NeedPreserveFooter = true;
-
-		Find_Actual_Block_Device();
-		if (!Is_Present) {
-			LOGINFO("Block device not present, cannot wipe %s.\n", Display_Name.c_str());
-			gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
-			return false;
-		}
-		if (!UnMount(true))
-			return false;
-
-		/**
-		 * On decrypted devices, IOCTL_Get_Block_Size calculates size on device mapper,
-		 * so there's no need to preserve footer.
-		 */
-		if ((Is_Decrypted && !Decrypted_Block_Device.empty()) ||
-				Crypto_Key_Location != "footer") {
-			NeedPreserveFooter = false;
-		}
-
-		gui_msg(Msg("formatting_using=Formatting {1} using {2}...")(Display_Name)("mkfs.f2fs"));
-		// First determine if we have the old mkfs.f2fs that uses "-r reserved_bytes"
-		// or the new mkfs.f2fs that expects the number of sectors as the optional last argument
-		// Note: some 7.1 trees have the old and some have the new.
-		command = "mkfs.f2fs | grep \"reserved\" > /tmp/f2fsversiontest";
-		TWFunc::Exec_Cmd(command, false); // no help argument so printing usage exits with an error code
-		if (!TWFunc::Path_Exists("/tmp/f2fsversiontest")) {
-			LOGINFO("Error determining mkfs.f2fs version\n");
-			return false;
-		}
-		if (TWFunc::Get_File_Size("/tmp/f2fsversiontest") <= 0) {
-			LOGINFO("Using newer mkfs.f2fs\n");
-			unsigned long long dev_sz = TWFunc::IOCTL_Get_Block_Size(Actual_Block_Device.c_str());
-			if (!dev_sz)
-				return false;
-
-			if (NeedPreserveFooter)
-				Length < 0 ? dev_sz += Length : dev_sz -= CRYPT_FOOTER_OFFSET;
-
-			char dev_sz_str[48];
-			sprintf(dev_sz_str, "%llu", (dev_sz / 4096));
-			command = "mkfs.f2fs -d1 -f -O encrypt -O quota -O verity -w 4096 " + Actual_Block_Device + " " + dev_sz_str;
-			if (TWFunc::Path_Exists("/sbin/sload.f2fs")) {
-				command += " && sload.f2fs -t /data " + Actual_Block_Device;
-			}
-		} else {
-			LOGINFO("Using older mkfs.f2fs\n");
-			command = "mkfs.f2fs -t 0";
-			if (NeedPreserveFooter) {
-				// Only use length if we're not decrypted
-				char len[32];
-				int mod_length = Length;
-				if (Length < 0)
-					mod_length *= -1;
-				sprintf(len, "%i", mod_length);
-				command += " -r ";
-				command += len;
-			}
-			command += " " + Actual_Block_Device;
-		}
-		LOGINFO("mkfs.f2fs command: %s\n", command.c_str());
-		if (TWFunc::Exec_Cmd(command) == 0) {
-			if (NeedPreserveFooter)
-				Wipe_Crypto_Key();
-			Recreate_AndSec_Folder();
-			gui_msg("done=Done.");
-			return true;
-		} else {
-			gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
-			return false;
-		}
-		return true;
-	} else {
+	if (TWFunc::Path_Exists("/sbin/mkfs.f2fs"))
+		f2fs_bin = "/sbin/mkfs.f2fs";
+	else if (TWFunc::Path_Exists("/sbin/make_f2fs"))
+		f2fs_bin = "/sbin/make_f2fs";
+	else {
 		LOGINFO("mkfs.f2fs binary not found, using rm -rf to wipe.\n");
 		return Wipe_RMRF();
 	}
-	return false;
+
+	bool NeedPreserveFooter = true;
+
+	Find_Actual_Block_Device();
+	if (!Is_Present) {
+		LOGINFO("Block device not present, cannot wipe %s.\n", Display_Name.c_str());
+		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+		return false;
+	}
+	if (!UnMount(true))
+		return false;
+	
+	unsigned long long dev_sz = TWFunc::IOCTL_Get_Block_Size(Actual_Block_Device.c_str());
+	if (!dev_sz)
+		return false;
+
+	if (NeedPreserveFooter)
+		Length < 0 ? dev_sz += Length : dev_sz -= CRYPT_FOOTER_OFFSET;
+
+	char dev_sz_str[48];
+	sprintf(dev_sz_str, "%llu", (dev_sz / 4096));
+	command = f2fs_bin + " -d1 -f -O encrypt -O quota -O verity -w 4096 " + Actual_Block_Device + " " + dev_sz_str;
+	if (TWFunc::Path_Exists("/sbin/sload.f2fs")) {
+		command += " && sload.f2fs -t /data " + Actual_Block_Device;
+	}
+
+	/**
+	 * On decrypted devices, IOCTL_Get_Block_Size calculates size on device mapper,
+	 * so there's no need to preserve footer.
+	 */
+	if ((Is_Decrypted && !Decrypted_Block_Device.empty()) ||
+			Crypto_Key_Location != "footer") {
+		NeedPreserveFooter = false;
+	}
+	LOGINFO("mkfs.f2fs command: %s\n", f2fs_bin.c_str());
+	if (TWFunc::Exec_Cmd(command) == 0) {
+		if (NeedPreserveFooter)
+			Wipe_Crypto_Key();
+		Recreate_AndSec_Folder();
+		gui_msg("done=Done.");
+		return true;
+	} else {
+		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+		return false;
+	}
+	return true;
 }
 
 bool TWPartition::Wipe_NTFS() {
