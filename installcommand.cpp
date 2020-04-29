@@ -1,5 +1,3 @@
-<<<<<<< HEAD   (fc79aa Encryption: don't try wrapped key if not needed)
-=======
 /*
  * Copyright (C) 2007 The Android Open Source Project
  *
@@ -334,4 +332,3 @@ bool verify_package_compatibility(ZipWrap *zw) {
   return false;
 }
 #endif
->>>>>>> CHANGE (1913bf Make the twrp verify the pre-device among several props)
