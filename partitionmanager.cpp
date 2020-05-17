@@ -3314,16 +3314,22 @@ std::string TWPartitionManager::Get_Super_Partition() {
 void TWPartitionManager::Setup_Super_Devices() {
 	std::string superPart = Get_Super_Partition();
 	android::fs_mgr::CreateLogicalPartitions(superPart);
+}
+
+void TWPartitionManager::Setup_Super_Partition() {
 	TWPartition* superPartition = new TWPartition();
-	superPartition->Mount_Point = "super";
+	std::string superPart = Get_Super_Partition();
+
+	superPartition->Backup_Path = "/super";
+	superPartition->Mount_Point = "/super";
 	superPartition->Actual_Block_Device = superPart;
 	superPartition->Alternate_Block_Device = superPart;
-	superPartition->Backup_Display_Name = "super";
-	superPartition->Change_Mount_Read_Only(true);
+	superPartition->Backup_Display_Name = "Super";
 	superPartition->Current_File_System = "emmc";
 	superPartition->Can_Be_Backed_Up = true;
 	superPartition->Is_Present = true;
 	superPartition->Is_SubPartition = false;
+	superPartition->Setup_Image();
 	Add_Partition(superPartition);
 	PartitionManager.Output_Partition(superPartition);
 	Update_System_Details();

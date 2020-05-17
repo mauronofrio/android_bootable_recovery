@@ -387,7 +387,8 @@ public:
     bool Prepare_Super_Volume(TWPartition* twrpPart);					  	  // Prepare logical super partition volume for mounting
 	std::string Get_Super_Partition();										  // Get Super Partition block device path
 	void Setup_Super_Devices();												  // Setup logical dm devices on super partition
-	bool Get_Super_Status();												  // Return whether device has a super partition
+	bool Get_Super_Status();
+	void Setup_Super_Partition();													  // Return whether device has a super partition
 private:
 	void Setup_Settings_Storage_Partition(TWPartition* Part);                 // Sets up settings storage
 	void Setup_Android_Secure_Location(TWPartition* Part);                    // Sets up .android_secure if needed

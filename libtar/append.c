@@ -142,7 +142,11 @@ tar_append_file(TAR *t, const char *realname, const char *savename)
 			printf("malloc ext4_encryption_policy\n");
 			return -1;
 		}
+#ifdef USE_FSCRYPT
+
+#else
 		if (e4crypt_policy_get_struct(realname, t->th_buf.eep))
+#endif
 		{
 			char tar_policy[EXT4_KEY_DESCRIPTOR_SIZE];
 			memset(tar_policy, 0, sizeof(tar_policy));
