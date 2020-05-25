@@ -216,7 +216,7 @@ static KeymasterOperation begin(Keymaster& keymaster, const std::string& dir,
         LOG(DEBUG) << "Upgrading key: " << dir;
         std::string newKey;
         if (!keymaster.upgradeKey(kmKey, keyParams, &newKey)) return KeymasterOperation();
-        auto newKeyPath = dir + "/" + kFn_keymaster_key_blob_upgraded;
+        /*auto newKeyPath = dir + "/" + kFn_keymaster_key_blob_upgraded;
         if (!writeStringToFile(newKey, newKeyPath)) return KeymasterOperation();
         if (!keepOld) {
             if (rename(newKeyPath.c_str(), kmKeyPath.c_str()) != 0) {
@@ -230,9 +230,9 @@ static KeymasterOperation begin(Keymaster& keymaster, const std::string& dir,
             if (!kmDeleteKey(keymaster, kmKey)) {
                 LOG(ERROR) << "Key deletion failed during upgrade, continuing anyway: " << dir;
             }
-        }
+        } */
         kmKey = newKey;
-        LOG(INFO) << "Key upgraded: " << dir;
+        LOG(INFO) << "Key upgraded in memory but non updated in folder: " << dir;
     }
 }
 
