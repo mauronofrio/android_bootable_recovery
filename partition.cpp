@@ -462,14 +462,14 @@ bool TWPartition::Process_Fstab_Line(const char *fstab_line, bool Display_Error,
 			Display_Name = "System";
 			Backup_Display_Name = Display_Name;
 			Storage_Name = Display_Name;
-			Wipe_Available_in_GUI = true;
-			Can_Be_Backed_Up = true;
+			Wipe_Available_in_GUI = false;
+			Can_Be_Backed_Up = false;
 			Mount_Read_Only = true;
 		} else if (Mount_Point == "/data") {
 			Display_Name = "Data";
 			Backup_Display_Name = Display_Name;
 			Storage_Name = Display_Name;
-			Wipe_Available_in_GUI = true;
+			Wipe_Available_in_GUI = false;
 			Wipe_During_Factory_Reset = true;
 			Can_Be_Backed_Up = true;
 			Can_Encrypt_Backup = true;
@@ -509,6 +509,16 @@ bool TWPartition::Process_Fstab_Line(const char *fstab_line, bool Display_Error,
 			Can_Be_Backed_Up = true;
 		} else if (Mount_Point == "/vendor") {
 			Display_Name = "Vendor";
+			Backup_Display_Name = Display_Name;
+			Storage_Name = Display_Name;
+			Mount_Read_Only = true;
+		} else if (Mount_Point == "/product") {
+			Display_Name = "Product";
+			Backup_Display_Name = Display_Name;
+			Storage_Name = Display_Name;
+			Mount_Read_Only = true;
+		} else if (Mount_Point == "/odm") {
+			Display_Name = "ODM";
 			Backup_Display_Name = Display_Name;
 			Storage_Name = Display_Name;
 			Mount_Read_Only = true;
