@@ -59,7 +59,7 @@ static const std::string kDmNameUserdata = "userdata";
 static const char* kFn_keymaster_key_blob = "keymaster_key_blob";
 static const char* kFn_keymaster_key_blob_upgraded = "keymaster_key_blob_upgraded";
 
-static bool mount_via_fs_mgr(const char* mount_point, const char* blk_device) {
+/*static bool mount_via_fs_mgr(const char* mount_point, const char* blk_device) {
     // fs_mgr_do_mount runs fsck. Use setexeccon to run trusted
     // partitions in the fsck domain.
     if (setexeccon(android::vold::sFsckContext)) {
@@ -79,7 +79,7 @@ static bool mount_via_fs_mgr(const char* mount_point, const char* blk_device) {
     }
     LOG(DEBUG) << "Mounted " << mount_point;
     return true;
-}
+}*/
 
 android::fs_mgr::Fstab fstab_default;
 
@@ -111,19 +111,19 @@ static void commit_key(const std::string& dir) {
     LOG(INFO) << "Old Key deleted: " << dir;
 }
 
-static bool read_key(const FstabEntry& data_rec, bool create_if_absent, KeyBuffer* key) {
-    if (data_rec.key_dir.empty()) {
+static bool read_key(const std::string& key_dir, bool create_if_absent, KeyBuffer* key) {
+    /*if (data_rec.key_dir.empty()) {
         LOG(ERROR) << "Failed to get key_dir";
         return false;
     }
-    std::string key_dir = data_rec.key_dir;
+    std::string key_dir = data_rec.key_dir;*/
     std::string sKey;
     auto dir = key_dir + "/key";
     LOG(DEBUG) << "key_dir/key: " << dir;
-    if (fs_mkdirs(dir.c_str(), 0700)) {
+    /*if (fs_mkdirs(dir.c_str(), 0700)) {
         PLOG(ERROR) << "Creating directories: " << dir;
         return false;
-    }
+    }*/
     auto temp = key_dir + "/tmp";
     auto newKeyPath = dir + "/" + kFn_keymaster_key_blob_upgraded;
     /* If we have a leftover upgraded key, delete it.
@@ -254,7 +254,7 @@ static bool create_crypto_blk_dev(const std::string& dm_name, uint64_t nr_sec,
 }
 
 bool fscrypt_mount_metadata_encrypted(const std::string& blk_device, const std::string& mount_point,
-                                      bool needs_encrypt) {
+                                      bool needs_encrypt, std::string* crypto_blkdev, const std::string& key_dir) {
     LOG(ERROR) << "fscrypt_mount_metadata_encrypted: " << blk_device << " " << mount_point << " " << needs_encrypt;
     // auto encrypted_state = android::base::GetProperty("ro.crypto.state", "");
     // if (encrypted_state != "") {
@@ -262,7 +262,7 @@ bool fscrypt_mount_metadata_encrypted(const std::string& blk_device, const std::
         // return false;
     // }
 
-    if (!ReadDefaultFstab(&fstab_default)) {
+    /*if (!ReadDefaultFstab(&fstab_default)) {
         PLOG(ERROR) << "Failed to open default fstab";
         return -1;
     }
@@ -271,17 +271,17 @@ bool fscrypt_mount_metadata_encrypted(const std::string& blk_device, const std::
     if (!data_rec) {
         LOG(ERROR) << "Failed to get data_rec";
         return false;
-    }
+    }*/
     KeyBuffer key;
-    if (!read_key(*data_rec, needs_encrypt, &key)) return false;
+    if (!read_key(key_dir, needs_encrypt, &key)) return false;
     uint64_t nr_sec;
-    if (!get_number_of_sectors(data_rec->blk_device, &nr_sec)) return false;
-    std::string crypto_blkdev;
+    if (!get_number_of_sectors(blk_device, &nr_sec)) return false;
+    //std::string crypto_blkdev;
     if (!create_crypto_blk_dev(kDmNameUserdata, nr_sec, DEFAULT_KEY_TARGET_TYPE,
-                               default_key_params(blk_device, key), &crypto_blkdev))
+                               default_key_params(blk_device, key), /*&*/crypto_blkdev))
         return false;
     // FIXME handle the corrupt case
-    if (needs_encrypt) {
+    /*if (needs_encrypt) {
         LOG(INFO) << "Beginning inplace encryption, nr_sec: " << nr_sec;
         off64_t size_already_done = 0;
         auto rc = cryptfs_enable_inplace(crypto_blkdev.data(), blk_device.data(), nr_sec,
@@ -298,6 +298,7 @@ bool fscrypt_mount_metadata_encrypted(const std::string& blk_device, const std::
     }
 
     LOG(ERROR) << "Mounting metadata-encrypted filesystem:" << mount_point;
-    mount_via_fs_mgr(data_rec->mount_point.c_str(), crypto_blkdev.c_str());
+    mount_via_fs_mgr(data_rec->mount_point.c_str(), crypto_blkdev.c_str());*/
+	LOG(DEBUG) << "crypto block device '" << *crypto_blkdev << "\n";
     return true;
 }

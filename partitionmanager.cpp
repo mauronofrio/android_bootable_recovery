@@ -356,7 +356,7 @@ void TWPartitionManager::Decrypt_Data() {
 		if (!Decrypt_Data->Key_Directory.empty() && Mount_By_Path(Decrypt_Data->Key_Directory, false)) {
 #ifdef TW_INCLUDE_FBE_METADATA_DECRYPT
 #ifdef USE_FSCRYPT
-			if (fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false)) {
+			if (fscrypt_mount_metadata_encrypted(Decrypt_Data->Actual_Block_Device, Decrypt_Data->Mount_Point, false, &Decrypt_Data->Decrypted_Block_Device, Decrypt_Data->Key_Directory)) {
 				property_set("ro.crypto.fs_crypto_blkdev", Decrypt_Data->Decrypted_Block_Device.c_str());
 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", 
 				Decrypt_Data->Actual_Block_Device.c_str());
