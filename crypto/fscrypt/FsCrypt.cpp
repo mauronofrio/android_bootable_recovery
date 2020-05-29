@@ -154,7 +154,7 @@ static std::string get_ce_key_current_path(const std::string& directory_path) {
     return directory_path + "/current";
 }
 
-static bool get_ce_key_new_path(const std::string& directory_path,
+/*static bool get_ce_key_new_path(const std::string& directory_path,
                                 const std::vector<std::string>& paths, std::string* ce_key_path) {
     if (paths.empty()) {
         *ce_key_path = get_ce_key_current_path(directory_path);
@@ -168,7 +168,7 @@ static bool get_ce_key_new_path(const std::string& directory_path,
         }
     }
     return false;
-}
+}*/
 
 // Discard all keys but the named one; rename it to canonical name.
 // No point in acting on errors in this; ignore them.
@@ -273,19 +273,19 @@ static bool prepare_dir(const std::string& dir, mode_t mode, uid_t uid, gid_t gi
     return true;
 }
 
-static bool destroy_dir(const std::string& dir) {
+/*static bool destroy_dir(const std::string& dir) {
     LOG(DEBUG) << "Destroying: " << dir;
     if (rmdir(dir.c_str()) != 0 && errno != ENOENT) {
         PLOG(ERROR) << "Failed to destroy " << dir;
         return false;
     }
     return true;
-}
+}*/
 
 // NB this assumes that there is only one thread listening for crypt commands, because
 // it creates keys in a fixed location.
 static bool create_and_install_user_keys(userid_t user_id, bool create_ephemeral) {
-    KeyBuffer de_key, ce_key;
+    /*KeyBuffer de_key, ce_key;
 
     if(is_wrapped_key_supported()) {
         if (!generateWrappedKey(user_id, android::vold::KeyType::DE_USER, &de_key)) return false;
@@ -314,19 +314,19 @@ static bool create_and_install_user_keys(userid_t user_id, bool create_ephemeral
             return false;
     }
 
-    /* Install the DE keys */
+    /* Install the DE keys 
     std::string de_raw_ref;
     std::string ce_raw_ref;
     if (is_wrapped_key_supported()) {
         KeyBuffer ephemeral_wrapped_de_key;
         KeyBuffer ephemeral_wrapped_ce_key;
 
-        /* Export and install the DE keys */
+        /* Export and install the DE keys 
         if (!getEphemeralWrappedKey(KeyFormat::RAW, de_key, &ephemeral_wrapped_de_key)) {
            LOG(ERROR) << "Failed to export de_key";
            return false;
         }
-        /* Export and install the CE keys */
+        /* Export and install the CE keys 
         if (!getEphemeralWrappedKey(KeyFormat::RAW, ce_key, &ephemeral_wrapped_ce_key)) {
            LOG(ERROR) << "Failed to export de_key";
            return false;
@@ -342,7 +342,8 @@ static bool create_and_install_user_keys(userid_t user_id, bool create_ephemeral
     s_de_key_raw_refs[user_id] = de_raw_ref;
     s_ce_key_raw_refs[user_id] = ce_raw_ref;
 
-    LOG(DEBUG) << "Created keys for user " << user_id;
+    LOG(DEBUG) << "Created keys for user " << user_id;*/
+    LOG(DEBUG) << "TWRP not doing create_and_install_user_keys\n";
     return true;
 }
 
@@ -500,7 +501,7 @@ bool fscrypt_init_user0() {
     return true;
 }
 
-bool fscrypt_vold_create_user_key(userid_t user_id, int serial, bool ephemeral) {
+/*bool fscrypt_vold_create_user_key(userid_t user_id, int serial, bool ephemeral) {
     LOG(DEBUG) << "fscrypt_vold_create_user_key for " << user_id << " serial " << serial;
     if (!fscrypt_is_native()) {
         return true;
@@ -566,7 +567,7 @@ bool fscrypt_destroy_user_key(userid_t user_id) {
         }
     }
     return success;
-}
+}*/
 
 static bool emulated_lock(const std::string& path) {
     if (chmod(path.c_str(), 0000) != 0) {
@@ -652,7 +653,7 @@ static bool read_or_create_volkey(const std::string& misc_path, const std::strin
     return true;
 }
 
-static bool destroy_volkey(const std::string& misc_path, const std::string& volume_uuid) {
+/*static bool destroy_volkey(const std::string& misc_path, const std::string& volume_uuid) {
     auto path = volkey_path(misc_path, volume_uuid);
     if (!android::vold::pathExists(path)) return true;
     return android::vold::destroyKey(path);
@@ -717,12 +718,12 @@ bool fscrypt_clear_user_key_auth(userid_t user_id, int serial, const std::string
         std::string ce_key_current_path = get_ce_key_current_path(directory_path);
 
         auto auth = android::vold::KeyAuthentication(token, secret);
-        /* Retrieve key while removing a pin. A secret is needed */
+        /* Retrieve key while removing a pin. A secret is needed 
         if (android::vold::retrieveKey(ce_key_current_path, auth, &ce_key)) {
             LOG(DEBUG) << "Successfully retrieved key";
         } else {
             /* Retrieve key when going None to swipe and vice versa when a
-               synthetic password is present */
+               synthetic password is present 
             if (android::vold::retrieveKey(ce_key_current_path, kEmptyAuthentication, &ce_key)) {
                 LOG(DEBUG) << "Successfully retrieved key";
             }
@@ -750,7 +751,7 @@ bool fscrypt_fixate_newest_user_key_auth(userid_t user_id) {
     }
     fixate_user_ce_key(directory_path, paths[0], paths);
     return true;
-}
+}*/
 
 // TODO: rename to 'install' for consistency, and take flags to know which keys to install
 bool fscrypt_unlock_user_key(userid_t user_id, int serial, const std::string& token_hex,
@@ -786,7 +787,7 @@ bool fscrypt_unlock_user_key(userid_t user_id, int serial, const std::string& to
 }
 
 // TODO: rename to 'evict' for consistency
-bool fscrypt_lock_user_key(userid_t user_id) {
+/*bool fscrypt_lock_user_key(userid_t user_id) {
     LOG(DEBUG) << "fscrypt_lock_user_key " << user_id;
     if (fscrypt_is_native()) {
         return evict_ce_key(user_id);
@@ -802,7 +803,7 @@ bool fscrypt_lock_user_key(userid_t user_id) {
     }
 
     return true;
-}
+}*/
 
 static bool prepare_subdirs(const std::string& action, const std::string& volume_uuid,
                             userid_t user_id, int flags) {
@@ -907,7 +908,7 @@ bool fscrypt_prepare_user_storage(const std::string& volume_uuid, userid_t user_
     return true;
 }
 
-bool fscrypt_destroy_user_storage(const std::string& volume_uuid, userid_t user_id, int flags) {
+/*bool fscrypt_destroy_user_storage(const std::string& volume_uuid, userid_t user_id, int flags) {
     LOG(DEBUG) << "fscrypt_destroy_user_storage for volume " << escape_empty(volume_uuid)
                << ", user " << user_id << ", flags " << flags;
     bool res = true;
@@ -1001,4 +1002,4 @@ bool fscrypt_destroy_volume_keys(const std::string& volume_uuid) {
     res &= destroy_volume_keys("/data/misc_ce", volume_uuid);
     res &= destroy_volume_keys("/data/misc_de", volume_uuid);
     return res;
-}
+}*/

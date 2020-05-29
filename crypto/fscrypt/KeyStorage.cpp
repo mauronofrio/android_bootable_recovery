@@ -623,6 +623,8 @@ bool runSecdiscardSingle(const std::string& file) {
 }
 
 static bool recursiveDeleteKey(const std::string& dir) {
+	LOG(DEBUG) << "not recursively deleting key in " << __FILE__ << std::endl;
+	return true;
     if (ForkExecvp(std::vector<std::string>{kRmPath, "-rf", dir}) != 0) {
         LOG(ERROR) << "recursive delete failed";
         return false;
@@ -631,6 +633,8 @@ static bool recursiveDeleteKey(const std::string& dir) {
 }
 
 bool destroyKey(const std::string& dir) {
+	LOG(DEBUG) << "not destroying key in " << __FILE__ << std::endl;
+	return true;
     bool success = true;
     // Try each thing, even if previous things failed.
     bool uses_km = pathExists(dir + "/" + kFn_keymaster_key_blob);
