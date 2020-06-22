@@ -403,6 +403,10 @@ int main(int argc, char **argv) {
 			if (!PartitionManager.Prepare_All_Super_Volumes()) {
 				LOGERR("Unable to prepare super volumes.\n");
 			}
+			sys->Mount(true);
+			if (ven) {
+				ven->Mount(true);
+			}
 		} else {
 			if ((DataManager::GetIntValue("tw_mount_system_ro") == 0 && sys->Check_Lifetime_Writes() == 0) || DataManager::GetIntValue("tw_mount_system_ro") == 2) {
 				if (DataManager::GetIntValue("tw_never_show_system_ro_page") == 0) {
